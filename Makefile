@@ -34,10 +34,3 @@ unit: clean dependencies
 	@export PYTHONPATH=`pwd`:`pwd`/staticgenerator::$$PYTHONPATH && \
 		nosetests -d -s --verbose --with-coverage --cover-inclusive --cover-package=staticgenerator \
 			staticgenerator/tests/unit
-	
-functional: clean dependencies
-	@echo "Running unit tests..."
-	@mkdir `pwd`/test_data
-	@export PYTHONPATH=`pwd`:`pwd`/staticgenerator::$$PYTHONPATH && \
-		nosetests -d -s --verbose --with-coverage --cover-inclusive --cover-package=staticgenerator \
-			staticgenerator/tests/functional
