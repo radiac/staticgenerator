@@ -16,6 +16,7 @@ from django.db.models.manager import Manager
 from django.db.models import Model
 from django.db.models.query import QuerySet
 from django.conf import settings
+from django.test.client import RequestFactory
 from handlers import DummyHandler
 
 
@@ -120,7 +121,7 @@ class StaticGenerator(object):
         resulting output (HTML, XML, whatever)
         """
 
-        request = HttpRequest()
+        request = RequestFactory().get(path)
         # We must parse the path to grab query string
         parsed = urlparse.urlparse(path)
         request.path_info = parsed.path
