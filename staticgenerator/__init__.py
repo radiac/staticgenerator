@@ -185,7 +185,7 @@ class StaticGenerator(object):
             raise StaticGeneratorException('Path %s has multiple query string values' % path)
         return parts[0], parts[1]
 
-    def get_filename_from_path(self, path, query_string):
+    def get_filename_from_path(self, path, query_string, is_ajax=False):
         """
         Returns (filename, directory). None if unable to cache this request.
         Creates index.html for path if necessary
@@ -198,13 +198,18 @@ class StaticGenerator(object):
         # will not work on windows... meh
         if query_string:
             path += query_string
+        if is_ajax:
+            # Append an ',ajax' suffix to the file name for AJAX requests.
+            # This makes it possible to cache responses which have different
+            # content for AJAX requests.
+            path += ',ajax'
 
         filename = self.fs.join(self.web_root, path.lstrip('/')).encode('utf-8')
         if len(filename) > 255:
             return None, None
         return filename, self.fs.dirname(filename)
 
-    def publish_from_path(self, path, query_string=None, content=None):
+    def publish_from_path(self, path, query_string=None, content=None, is_ajax=False):
         """
         Gets filename and content for a path, attempts to create directory if 
         necessary, writes to file.
@@ -216,7 +221,8 @@ class StaticGenerator(object):
         # have a query string component.
         if query_string is None:
             path, query_string = self.get_query_string_from_path(path)
-        filename, directory = self.get_filename_from_path(path, query_string)
+        filename, directory = self.get_filename_from_path(
+            path, query_string, is_ajax=is_ajax)
         if not filename:
             return # cannot cache
         if not content:
@@ -241,10 +247,11 @@ class StaticGenerator(object):
         filename, directory = self.get_filename_from_path(path, '')
         shutil.rmtree(directory, True)
 
-    def delete_from_path(self, path):
+    def delete_from_path(self, path, is_ajax=False):
         """Deletes file, attempts to delete directory"""
         path, query_string = self.get_query_string_from_path(path)
-        filename, directory = self.get_filename_from_path(path, query_string)
+        filename, directory = self.get_filename_from_path(
+            path, query_string, is_ajax=is_ajax)
 
         try:
             if self.fs.exists(filename):

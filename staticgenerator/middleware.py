@@ -36,7 +36,10 @@ class StaticGeneratorMiddleware(object):
             if not excluded:
                 for url in self.urls:
                     if url.match(path):
-                        self.gen.publish_from_path(path, query_string, response.content)
+                        self.gen.publish_from_path(path,
+                                                   query_string,
+                                                   response.content,
+                                                   is_ajax=request.is_ajax())
                         break
 
         return response
