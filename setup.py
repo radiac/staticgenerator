@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-version = '1.4.1.1-mrj0'
+version = '1.4.1.2-g2.0'
 
 setup(name='staticgenerator',
       version=version,

@@ -26,6 +26,14 @@ In short, this adds the ability to only cache for anonymous users and to add the
          r'^/articles/comments/posted',
     )
 
+Another way to always exclude a view from being cached is to use the `@disable_static_generator` decorator:
+
+    from staticgenerator.decorators import disable_static_generator
+    
+    @disable_static_generator
+    def myview(request)
+        # ...
+
 ## Download
 
 You can get StaticGenerator using `easy_install`:

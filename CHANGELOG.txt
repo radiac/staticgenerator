@@ -1,3 +1,15 @@
+2012-11-13, v1.4.1.2-g2.0
+
+    - AJAX requests are now cached separately
+
+    - Improved compatibility with Apache by escaping question marks in
+      file names and including them even when there are no query parameters
+
+    - Middleware now survives a missing request.user
+
+    - Added the @disable_static_generator decorator for exempting
+      views from being cached
+
 2009-05-09, v1.3.4
 
     - Atomic file writes
