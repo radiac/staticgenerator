@@ -22,7 +22,9 @@ class StaticGeneratorMiddleware(object):
         path = request.path_info
         query_string = request.META.get('QUERY_STRING', '')
         if response.status_code == 200:
-            if getattr(settings, 'STATIC_GENERATOR_ANONYMOUS_ONLY', False) and not request.user.is_anonymous():
+            if  (getattr(settings, 'STATIC_GENERATOR_ANONYMOUS_ONLY', False)
+                 and hasattr(request, 'user')
+                 and not request.user.is_anonymous()):
                 return response
 
             excluded = False
