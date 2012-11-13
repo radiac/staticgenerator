@@ -191,10 +191,13 @@ class StaticGenerator(object):
         Creates index.html for path if necessary
         """
         if path.endswith('/'):
-            path = '%sindex.html' % path
+            # Always include a %3F in the file name, even if there are no query
+            # parameters.  Using %3F instead of a question mark makes rewriting
+            # possible in Apache.  Always including it makes rewriting easier.
+            path = '%sindex.html%%3F' % path
         # will not work on windows... meh
         if query_string:
-            path += "?" + query_string
+            path += query_string
 
         filename = self.fs.join(self.web_root, path.lstrip('/')).encode('utf-8')
         if len(filename) > 255:
