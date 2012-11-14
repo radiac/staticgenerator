@@ -1,6 +1,6 @@
 import re
 from django.conf import settings
-from staticgenerator import StaticGenerator
+from staticgenerator import StaticGenerator, StaticGeneratorException
 
 class StaticGeneratorMiddleware(object):
     """
@@ -39,10 +39,19 @@ class StaticGeneratorMiddleware(object):
             if not excluded:
                 for url in self.urls:
                     if url.match(path):
-                        self.gen.publish_from_path(path,
-                                                   query_string,
-                                                   response.content,
-                                                   is_ajax=request.is_ajax())
+                        try:
+                            self.gen.publish_from_path(
+                                path,
+                                query_string,
+                                response.content,
+                                is_ajax=request.is_ajax())
+                        except StaticGeneratorException:
+                            # Never throw a 500 page because of a failure in
+                            # writing pages to the cache.  Remember to monitor
+                            # the site to detect performance regression due to
+                            # a full disk or insufficient permissions in the
+                            # cache directory.
+                            pass
                         break
 
         return response
