@@ -284,8 +284,5 @@ def quick_publish(*resources):
 def quick_delete(*resources):
     return StaticGenerator(*resources).delete()
 
-def quick_delete(*resources):
-    return StaticGenerator(*resources).delete()
-
 def recursive_delete(*resources):
     return StaticGenerator(*resources).recursive_delete()
