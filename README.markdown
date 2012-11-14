@@ -6,9 +6,15 @@ How many CPU cycles do you suppose are wasted on blogs that are generated every 
 
 ## Fork
 
-This is a fork from the main branch in order to add patches from [bolhoed](https://bitbucket.org/bolhoed/mixedcase/src/tip/project/staticgenerator/). See the details at [mixedCase.nl](http://mixedcase.nl/articles/2010/11/16/serving-5000-pages-second-django/).
+This fork from [mrj0's version](https://github.com/mrj0/staticgenerator) includes patches contributed and used by [2General Ltd](http://www.2general.com/).
 
-In short, this adds the ability to only cache for anonymous users and to add the ability to exclude urls:
+The mrj0 version is itself a fork from the main branch in order to add patches from [bolhoed](https://bitbucket.org/bolhoed/mixedcase/src/tip/project/staticgenerator/). See the details at [mixedCase.nl](http://mixedcase.nl/articles/2010/11/16/serving-5000-pages-second-django/).
+
+### Differences introduced by mrj0 and 2general
+
+#### The ability to only cache for anonymous users and to exclude urls
+
+Example `settings.py`:
 
     WEB_ROOT = os.path.join(os.path.dirname(__file__), 'generated')
     
@@ -33,6 +39,18 @@ Another way to always exclude a view from being cached is to use the `@disable_s
     @disable_static_generator
     def myview(request)
         # ...
+
+#### Cache AJAX requests separately
+
+AJAX requests are cached separately from other requests. This is useful for sites which return different content for AJAX requests than for normal requests. This feature can't currently be switched off, although it probably should.
+
+#### Apache-friendly file names
+
+Question marks in URLs are encoded as the string `%3F` in file names, because it's not possible to stop Apache from stripping out the query string out before finding files from disk. Also, a trailing `%3F` is included even if there is no query string. This allows for simpler rewrite rules.
+
+#### More robust middleware
+
+The middleware now works even if the request object has no `user` attribute. This can happen e.g. when using [mediagenerator's](https://github.com/2general/django-mediagenerator/) middleware in development mode.
 
 ## Download
 
