@@ -54,11 +54,17 @@ The middleware now works even if the request object has no `user` attribute. Thi
 
 ## Download
 
-You can get StaticGenerator using `easy_install`:
+You can get 2General's fork of StaticGenerator by cloning with Git or using `pip`:
+
+    git clone git://github.com/2general/staticgenerator.git
+    pip install -e git+git://github.com/2general/staticgenerator.git#egg=staticgenerator
+
+You can get the official version of StaticGenerator without the mrj0 and 2General contributions using `easy_install` or `pip`:
 
     easy_install staticgenerator
+    pip install staticgenerator
     
-Or download from the [cheeseshop](http://pypi.python.org/pypi/staticgenerator/1.3).
+Or download from the [Python Package Index](http://pypi.python.org/pypi/staticgenerator/1.4.1).
 
 ## Usage
 
