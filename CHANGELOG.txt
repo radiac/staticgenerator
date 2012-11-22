@@ -1,3 +1,9 @@
+2012-11-24, v1.4.1.2-g2.1
+
+    - Middleware shouldn't fail on disk write error any more
+
+    - Added documentation about the 2General fork
+
 2012-11-13, v1.4.1.2-g2.0
 
     - AJAX requests are now cached separately
