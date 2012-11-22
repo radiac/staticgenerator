@@ -1,3 +1,8 @@
+2012-11-22, v1.4.1.2-g2.2
+
+    - Added the recursive_delete management command for invalidating
+      the cache
+
 2012-11-24, v1.4.1.2-g2.1
 
     - Middleware shouldn't fail on disk write error any more

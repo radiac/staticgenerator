@@ -52,6 +52,10 @@ Question marks in URLs are encoded as the string `%3F` in file names, because it
 
 The middleware now works even if the request object has no `user` attribute. This can happen e.g. when using [mediagenerator's](https://github.com/2general/django-mediagenerator/) middleware in development mode.
 
+#### Management command for invalidating the cache
+
+You can run the `manage.py recursive_delete /` command to invalidate the whole cache.  Use subpaths to only invalidate a part of the cache.
+
 ## Download
 
 You can get 2General's fork of StaticGenerator by cloning with Git or using `pip`:
