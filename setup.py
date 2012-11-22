@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-version = '1.4.1.2-g2.1'
+version = '1.4.1.2-g2.2'
 
 setup(name='staticgenerator',
       version=version,
@@ -8,5 +8,7 @@ setup(name='staticgenerator',
       author="Jared Kuolt",
       author_email="me@superjared.com",
       url="http://superjared.com/projects/static-generator/",
-      packages = ['staticgenerator']
-      )
+      packages=['staticgenerator',
+                'staticgenerator.management',
+                'staticgenerator.management.commands']
+)
