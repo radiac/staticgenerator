@@ -4,6 +4,7 @@
 """Static file generator for Django."""
 import os
 import stat
+import tempfile
 import urlparse
 
 import shutil
@@ -191,14 +192,14 @@ class StaticGenerator(object):
         if not content:
             content = self.get_content_from_path(content_path)
 
-        if not os.exists(directory):
+        if not os.path.exists(directory):
             try:
                 os.makedirs(directory)
             except:
                 raise StaticGeneratorException('Could not create the directory: %s' % directory)
 
         try:
-            f, tmpname = os.tempfile(directory=directory)
+            f, tmpname = tempfile.mkstemp(dir=directory)
             os.write(f, content)
             os.close(f)
             os.chmod(tmpname, stat.S_IREAD | stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
@@ -217,7 +218,7 @@ class StaticGenerator(object):
             path, query_string, is_ajax=is_ajax)
 
         try:
-            if os.exists(filename):
+            if os.path.exists(filename):
                 os.remove(filename)
         except:
             raise StaticGeneratorException('Could not delete file: %s' % filename)
