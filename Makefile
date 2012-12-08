@@ -1,7 +1,10 @@
-dependencies: nose django mox coverage django-nose
+dependencies: nose django mock mox coverage django-nose
 
 coverage:
 	@python -c 'import coverage' 2>/dev/null || pip install coverage
+
+mock:
+	@python -c 'import mock' 2>/dev/null || pip install mock==1.0.1
 
 mox:
 	@python -c 'import mox' 2>/dev/null || pip install mox
@@ -34,6 +37,6 @@ test: clean dependencies
 
 unit: clean dependencies
 	@echo "Running unit tests..."
-	@export PYTHONPATH=`pwd`:`pwd`/staticgenerator::$$PYTHONPATH && \
-		nosetests -d -s --verbose --with-coverage --cover-inclusive --cover-package=staticgenerator \
+	@staticgenerator/tests/manage.py test \
+			-d -s -v 2 --with-coverage --cover-inclusive --cover-package=staticgenerator \
 			staticgenerator/tests/unit

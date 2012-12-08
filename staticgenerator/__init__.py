@@ -50,9 +50,7 @@ class StaticGenerator(object):
     with django in order for more effectively unit testing.
     """
 
-    def __init__(self, *resources, **kw):
-        self.parse_dependencies(kw)
-
+    def __init__(self, *resources):
         self.resources = self.extract_resources(resources)
         self.server_name = self.get_server_name()
 
@@ -60,10 +58,6 @@ class StaticGenerator(object):
             self.web_root = getattr(settings, 'WEB_ROOT')
         except AttributeError:
             raise StaticGeneratorException('You must specify WEB_ROOT in settings.py')
-
-    def parse_dependencies(self, kw):
-        site = kw.get('site', None)
-        self.site = site
 
     def extract_resources(self, resources):
         """Takes a list of resources, and gets paths by type"""
@@ -107,10 +101,8 @@ class StaticGenerator(object):
             pass
 
         try:
-            if not self.site:
-                from django.contrib.sites.models import Site
-                self.site = Site
-            return self.site.objects.get_current().domain
+            from django.contrib.sites.models import Site
+            return Site.objects.get_current().domain
         except:
             print '*** Warning ***: Using "localhost" for domain name. Use django.contrib.sites or set settings.SERVER_NAME to disable this warning.'
             return 'localhost'
@@ -126,7 +118,6 @@ class StaticGenerator(object):
         parsed = urlparse.urlparse(path)
         request.path_info = parsed.path
         request.GET = QueryDict(parsed.query)
-        request.REQUEST = request.GET
         request.META.setdefault('SERVER_PORT', 80)
         request.META.setdefault('SERVER_NAME', self.server_name)
         request.META.setdefault('REMOTE_ADDR', '127.0.0.1')
