@@ -2,6 +2,7 @@
 #-*- coding:utf-8 -*-
 
 """Static file generator for Django."""
+import logging
 import os
 import stat
 import tempfile
@@ -20,8 +21,67 @@ from django.test.client import RequestFactory
 from handlers import DummyHandler
 
 
+logger = logging.getLogger('staticgenerator')
+
+
 class StaticGeneratorException(Exception):
     pass
+
+
+def create_directory(directory):
+    """Creates the given directory and missing intermediate directories
+
+    Does nothing if the directory already exists.
+
+    """
+    if os.path.exists(directory):
+        return
+    try:
+        os.makedirs(directory)
+    except Exception as exc:
+        raise StaticGeneratorException(
+            'Could not create the directory: {0}. {1}'
+            .format(directory, exc))
+
+
+def hardlink(src, dst, remove_dst=False, ignore_src=False, ignore_dst=False):
+    """Hard links the ``src`` file to the ``dst`` file path.
+
+    Arguments:
+    * ``src``: the source file
+    * ``dst``: the destination hard link path
+    * ``remove_dst``: if a true value, first attempts to remove the destination
+      file if it exists
+    * ``ignore_src``: if a true value, ignores missing source file silently
+    * ``ignore_dst``: if a true value, ignores existing destination file
+      silently
+
+    """
+    create_directory(os.path.dirname(dst))
+    if remove_dst:
+        try:
+            os.remove(dst)
+        except OSError as exc:
+            if exc.errno != 2:  # 2 = existing destination file not found
+                raise StaticGeneratorException(
+                    'Could not delete file {0}. {1}'.format(dst, exc))
+    try:
+        os.link(src, dst)
+        logger.debug('Linked %s to %s', src, dst)
+    except OSError as exc:
+        if exc.errno == 2 and ignore_src:
+            logger.debug('%s not found, ignoring', src)
+            return
+        if exc.errno == 17 and ignore_dst:
+            logger.debug('%s already exists, ignoring', dst)
+            return
+        logger.debug('Cannot link %s to %s: %s', src, dst, exc)
+        raise StaticGeneratorException(
+            'Could not link {0} to {1}. {2}'.format(src, dst, exc))
+    except Exception as exc:
+        logger.debug('Cannot link %s to %s: %s', src, dst, exc)
+        raise StaticGeneratorException(
+            'Could not link {0} to {1}. {2}'.format(src, dst, exc))
 
 
 class StaticGenerator(object):
@@ -163,51 +223,108 @@ class StaticGenerator(object):
         filename = os.path.join(self.web_root, path.lstrip('/')).encode('utf-8')
         if len(filename) > 255:
             return None, None
-        return filename, os.path.dirname(filename)
+        return filename
 
-    def publish_from_path(self, path, query_string=None, content=None, is_ajax=False):
-        """
-        Gets filename and content for a path, attempts to create directory if 
-        necessary, writes to file.
-        """
-        content_path = path
+    def _get_publish_data(self, path, query_string, is_ajax):
         # The query_string parameter is only passed from the
         # middleware. If we're generating a page from, e.g.,
         # the `quick_publish` function, the path may still
         # have a query string component.
         if query_string is None:
             path, query_string = self.get_query_string_from_path(path)
-        filename, directory = self.get_filename_from_path(
-            path, query_string, is_ajax=is_ajax)
-        if not filename:
-            return # cannot cache
+        fresh_filename = self.get_filename_from_path(
+            u'fresh{0}'.format(path), query_string, is_ajax=is_ajax)
+        stale_filename = self.get_filename_from_path(
+            u'stale{0}'.format(path), query_string, is_ajax=is_ajax)
+        return fresh_filename, stale_filename
+
+    def _publish_stale_file(self, fresh_filename, stale_filename):
+        if os.path.isfile(fresh_filename):
+            # We already have a fresh version of the resource. Don't
+            # overwrite.
+            logger.debug('StaticGenerator._publish_stale_file: '
+                         '%s already exists', fresh_filename)
+            return
+
+        # We don't have a fresh version of the resource.  Either it
+        # has never been rendered or it has been invalidated.  Copy a
+        # stale version for the duration of the request.
+        hardlink(stale_filename, fresh_filename,
+                 ignore_src=True, ignore_dst=True)
+
+    def publish_stale_path(self, path, query_string=None, is_ajax=False):
+        """Publishes a stale page in the given path if it exists
+
+        This is called from the request middleware
+
+        """
+        fresh_filename, stale_filename = self._get_publish_data(
+            path, query_string, is_ajax)
+        self._publish_stale_file(fresh_filename, stale_filename)
+
+    def publish_from_path(self,
+                          path,
+                          query_string=None,
+                          content=None,
+                          is_ajax=False):
+        """
+        Gets filename and content for a path, attempts to create directory if
+        necessary, writes to file.  Also hard links the fresh version to a
+        stale version in a separate tree.  Serves stale version if available
+        while generating content.
+        """
+        content_path = path
+
+        fresh_filename, stale_filename = self._get_publish_data(path,
+                                                                  query_string,
+                                                                  is_ajax)
+
+        if not fresh_filename:
+            return  # cannot cache
+
         if not content:
+            # The content needs to be fetched with a simulated request to a
+            # real view.  Publish a stale version for the duration of the
+            # request if available.
+            self._publish_stale_file(fresh_filename, stale_filename)
+            # Now make the request for the content.  This might take time.
             content = self.get_content_from_path(content_path)
 
-        if not os.path.exists(directory):
-            try:
-                os.makedirs(directory)
-            except:
-                raise StaticGeneratorException('Could not create the directory: %s' % directory)
-
+        # Write the content into the fresh version of the cached file.
+        fresh_directory = os.path.dirname(fresh_filename)
+        create_directory(fresh_directory)
         try:
-            f, tmpname = tempfile.mkstemp(dir=directory)
+            f, tmpname = tempfile.mkstemp(dir=fresh_directory)
             os.write(f, content)
             os.close(f)
-            os.chmod(tmpname, stat.S_IREAD | stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
-            os.rename(tmpname, filename)
-        except:
-            raise StaticGeneratorException('Could not create the file: %s' % filename)
+            os.chmod(tmpname,
+                     stat.S_IREAD |
+                     stat.S_IWRITE |
+                     stat.S_IWUSR |
+                     stat.S_IRUSR |
+                     stat.S_IRGRP |
+                     stat.S_IROTH)
+            os.rename(tmpname, fresh_filename)
+        except Exception as exc:
+            raise StaticGeneratorException(
+                'Could not create fresh file: {0}. {1}'
+                .format(fresh_filename, exc))
+
+        # The fresh version of the cached file is now on the disk.  Now
+        # create a hard link to it in the stale cache directory.
+        hardlink(fresh_filename, stale_filename,
+                 remove_dst=True, ignore_dst=True)
 
     def recursive_delete_from_path(self, path):
-        filename, directory = self.get_filename_from_path(path, '')
-        shutil.rmtree(directory, True)
+        filename = self.get_filename_from_path(
+            u'fresh{0}'.format(path), '')
+        shutil.rmtree(os.path.dirname(filename), True)
 
     def delete_from_path(self, path, is_ajax=False):
         """Deletes file, attempts to delete directory"""
         path, query_string = self.get_query_string_from_path(path)
-        filename, directory = self.get_filename_from_path(
-            path, query_string, is_ajax=is_ajax)
+        filename = self.get_filename_from_path(
+            u'fresh{0}'.format(path), query_string, is_ajax=is_ajax)
 
         try:
             if os.path.exists(filename):
@@ -216,7 +333,7 @@ class StaticGenerator(object):
             raise StaticGeneratorException('Could not delete file: %s' % filename)
 
         try:
-            os.rmdir(directory)
+            os.rmdir(os.path.dirname(filename))
         except OSError:
             # Will fail if a directory is not empty, in which case we don't
             # want to delete it anyway

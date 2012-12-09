@@ -1,6 +1,12 @@
 import re
 from django.conf import settings
+import logging
 from staticgenerator import StaticGenerator, StaticGeneratorException
+import sys
+
+
+logger = logging.getLogger('staticgenerator.middleware')
+
 
 class StaticGeneratorMiddleware(object):
     """
@@ -17,41 +23,72 @@ class StaticGeneratorMiddleware(object):
     urls = tuple([re.compile(url) for url in settings.STATIC_GENERATOR_URLS])
     excluded_urls = tuple([re.compile(url) for url in getattr(settings, 'STATIC_GENERATOR_EXCLUDE_URLS', [])])
     gen = StaticGenerator()
-    
-    def process_response(self, request, response):
+
+    def process_request(self, request):
+        request._static_generator = False
+
+        if getattr(request, 'disable_static_generator', False):
+            logger.debug('StaticGeneratorMiddleware: disabled')
+            return None
+
+        if  (getattr(settings, 'STATIC_GENERATOR_ANONYMOUS_ONLY', False)
+             and hasattr(request, 'user')
+             and not request.user.is_anonymous()):
+            logger.debug('StaticGeneratorMiddleware: '
+                         'disabled for logged in user')
+            return None
+
         path = request.path_info
-        query_string = request.META.get('QUERY_STRING', '')
-        if response.status_code == 200:
-            if  (getattr(settings, 'STATIC_GENERATOR_ANONYMOUS_ONLY', False)
-                 and hasattr(request, 'user')
-                 and not request.user.is_anonymous()):
-                return response
 
-            if getattr(request, 'disable_static_generator', False):
-                return response
+        for url in self.excluded_urls:
+            if url.match(path):
+                logger.debug('StaticGeneratorMiddleware: '
+                             'path %s excluded', path)
+                return None
 
-            excluded = False
-            for url in self.excluded_urls:
-                if url.match(path):
-                    excluded = True
-                    break
+        for url in self.urls:
+            if url.match(path):
+                request._static_generator = True
+                try:
+                    logger.debug('StaticGeneratorMiddleware: '
+                                 'Trying to publish stale path %s', path)
+                    self.gen.publish_stale_path(
+                        path,
+                        request.META.get('QUERY_STRING', ''),
+                        is_ajax=request.is_ajax())
+                except StaticGeneratorException:
+                    logger.warning(
+                        'StaticGeneratorMiddleware: '
+                        'failed to publish stale content',
+                        exc_info=sys.exc_info(),
+                        extra={'request': request})
+                return None
 
-            if not excluded:
-                for url in self.urls:
-                    if url.match(path):
-                        try:
-                            self.gen.publish_from_path(
-                                path,
-                                query_string,
-                                response.content,
-                                is_ajax=request.is_ajax())
-                        except StaticGeneratorException:
-                            # Never throw a 500 page because of a failure in
-                            # writing pages to the cache.  Remember to monitor
-                            # the site to detect performance regression due to
-                            # a full disk or insufficient permissions in the
-                            # cache directory.
-                            pass
-                        break
+        logger.debug('StaticGeneratorMiddleware: path %s not matched', path)
+        return None
+
+    def process_response(self, request, response):
+        # pylint: disable=W0212
+        #         Access to a protected member of a client class
+
+        if  (response.status_code == 200
+             and getattr(request, '_static_generator', False)):
+            try:
+                self.gen.publish_from_path(
+                    request.path_info,
+                    request.META.get('QUERY_STRING', ''),
+                    response.content,
+                    is_ajax=request.is_ajax())
+            except StaticGeneratorException:
+                # Never throw a 500 page because of a failure in
+                # writing pages to the cache.  Remember to monitor
+                # the site to detect performance regression due to
+                # a full disk or insufficient permissions in the
+                # cache directory.
+                logger.warning(
+                    'StaticGeneratorMiddleware: '
+                    'failed to publish fresh content',
+                    exc_info=sys.exc_info(),
+                    extra={'request': request})
 
         return response

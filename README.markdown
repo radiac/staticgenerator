@@ -2,7 +2,7 @@
 
 ## Introduction
 
-How many CPU cycles do you suppose are wasted on blogs that are generated every request? Wouldn’t it make more sense to generate them only when they’re updated? StaticGenerator is a Python class for Django that makes it easy to create static files for lightning fast performance. 
+How many CPU cycles do you suppose are wasted on blogs that are generated every request? Wouldn’t it make more sense to generate them only when they’re updated? StaticGenerator is a re-usable app for Django that makes it easy to create static files for lightning fast performance.
 
 ## Fork
 
@@ -39,6 +39,12 @@ Another way to always exclude a view from being cached is to use the `@disable_s
     @disable_static_generator
     def myview(request)
         # ...
+
+#### Mitigation of the dog-piling effect
+
+Each page is cached as two copies. After invalidation, the stale copy is served until the page has been generated. This avoids the dog-piling (a.k.a. "thundering herd") problem.
+
+There is still a small window at the start of the WSGI request when another request might arrive and not yet get served with the stale content. If the duration of this window isn't sufficiently short to prevent dog-piling for your traffic, you might be better of regenerating most visited pages instead of invalidating them.
 
 #### Cache AJAX requests separately
 
@@ -164,17 +170,22 @@ This configuration snippet shows how Nginx can automatically show the index.html
     
         server {
             server_name  example.com;
-            root   /var/www/;
+            root   /var/www/myproject/generated/fresh;
 
             location / {
                 default_type  text/html;
-                if (-f $request_filename/index.html$is_args$args) {
-                    rewrite (.*)/ $1/index.html$is_args$args?
+
+                if ($http_x_requested_with = XMLHttpRequest) {
+                    set $is_ajax ",ajax";
+                }
+
+                if (-f $request_filename/index.html%3F$args$is_ajax) {
+                    rewrite (.*)/ $1/index.html%3F$args$is_ajax;
                     break;
                 }
 
-                if (!-f $request_filename$is_args$args) {
-                        proxy_pass http://django;
+                if (!-f $request_filename%3F$args$is_ajax) {
+                    proxy_pass http://django;
                     break;
                 }
             }

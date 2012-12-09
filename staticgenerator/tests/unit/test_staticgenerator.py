@@ -10,6 +10,7 @@ from django.test.utils import override_settings
 from django.test import TestCase
 from mock import ANY, call, Mock, patch
 from nose.tools import raises
+import os
 import shutil
 from staticgenerator import (StaticGenerator,
                              StaticGeneratorException)
@@ -115,51 +116,120 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
 
         result = instance.get_filename_from_path('/foo/bar', '')
 
-        self.assertEqual(('test_web_root/foo/bar', 'test_web_root/foo'),
-                         result)
+        self.assertEqual('test_web_root/foo/bar', result)
 
     def test_get_filename_from_path_when_path_ends_with_slash(self):
         instance = StaticGenerator()
 
         result = instance.get_filename_from_path('/foo/bar/', '')
 
-        self.assertEqual(('test_web_root/foo/bar/index.html%3F',
-                          'test_web_root/foo/bar'),
-                         result)
+        self.assertEqual('test_web_root/foo/bar/index.html%3F', result)
 
-    def test_publish_raises_when_unable_to_create_folder(self):
+    def test_publish_raises_when_unable_to_create_current_folder(self):
         instance = StaticGenerator()
         with nested(patch('os.path.exists'),
                     patch('os.makedirs'),
                     self.assertRaises(StaticGeneratorException)
                     ) as (exists, makedirs, cm):
             exists.return_value = False
-            makedirs.side_effect = ValueError
+            makedirs.side_effect = ValueError('message')
 
             instance.publish_from_path('some_path', content='some_content')
 
-        self.assertEqual('Could not create the directory: test_web_root',
-                         str(cm.exception))
+        self.assertEqual(
+            'Could not create the directory: test_web_root/current. message',
+            str(cm.exception))
+
+    def test_publish_raises_when_unable_to_create_stale_folder(self):
+        real_makedirs = os.makedirs
+
+        def makedirs_mock(directory, *args):
+            if directory == 'test_web_root/stale':
+                raise ValueError()
+            real_makedirs(directory, *args)
+
+        instance = StaticGenerator()
+        with nested(patch('os.path.exists'),
+                    patch('os.makedirs'),
+                    self.assertRaises(StaticGeneratorException)
+                    ) as (exists, makedirs, cm):
+            exists.return_value = False
+            makedirs.side_effect = makedirs_mock
+
+            instance.publish_from_path('some_path', content='some_content')
+
+        self.assertEqual(
+            'Could not create the directory: test_web_root/stale. ',
+            str(cm.exception))
 
     def test_publish_raises_when_unable_to_create_temp_file(self):
         instance = StaticGenerator()
         with nested(patch('tempfile.mkstemp'),
                     self.assertRaises(StaticGeneratorException)
                    ) as (mkstemp, cm):
-            mkstemp.side_effect = ValueError
+            mkstemp.side_effect = ValueError('message')
 
             instance.publish_from_path('some_path', content='some_content')
 
-        self.assertEqual('Could not create the file: test_web_root/some_path',
-                         str(cm.exception))
+        self.assertEqual(
+            'Could not create current file: '
+            'test_web_root/current/some_path. message',
+            str(cm.exception))
 
-    def test_publish_from_path(self):
+    def test_publish_raises_when_unable_to_hard_link_stale_file(self):
+        instance = StaticGenerator()
+        with nested(patch('os.link'),
+                    self.assertRaises(StaticGeneratorException)
+                   ) as (link, cm):
+            link.side_effect = OSError(2, 'message')
+
+            instance.publish_from_path('some_path', content='some_content')
+
+        self.assertEqual(
+            'Could not link test_web_root/current/some_path '
+            'to test_web_root/stale/some_path. [Errno 2] message',
+            str(cm.exception))
+
+    def test_publish_from_path_creates_current_file(self):
         instance = StaticGenerator()
 
         instance.publish_from_path('some_path', content='some_content')
 
         self.assertEqual('some_content',
-                         open('test_web_root/some_path').read())
+                         open('test_web_root/current/some_path').read())
+
+    def test_publish_from_path_hard_links_stale_file(self):
+        instance = StaticGenerator()
+
+        instance.publish_from_path('some_path', content='some_content')
+
+        self.assertEqual(os.stat('test_web_root/current/some_path').st_ino,
+                         os.stat('test_web_root/stale/some_path').st_ino)
+
+    def test_publish_from_path_serves_stale_file_temporarily(self):
+        instance = StaticGenerator()
+        os.makedirs('test_web_root/stale')
+        open('test_web_root/stale/some_path', 'w').write('stale content')
+
+        def handler(_request):
+            """A mock request handler
+
+            At the time of the request, the current content should be hard
+            linked to the stale version.
+
+            """
+            current_content = open('test_web_root/current/some_path').read()
+            return Mock(content=('this content replaces {0!r}'
+                                 .format(current_content)),
+                        status_code=200)
+
+        with patch.object(staticgenerator, 'DummyHandler') as DummyHandler:
+            DummyHandler.return_value = handler
+
+            instance.publish_from_path('some_path')
+
+        self.assertEqual("this content replaces 'stale content'",
+                         open('test_web_root/current/some_path').read())
 
     def test_delete_raises_when_unable_to_delete_file(self):
         instance = StaticGenerator()
@@ -172,8 +242,9 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
 
             instance.delete_from_path('some_path')
 
-        self.assertEqual('Could not delete file: test_web_root/some_path',
-                         str(cm.exception))
+        self.assertEqual(
+            'Could not delete file: test_web_root/current/some_path',
+            str(cm.exception))
 
     def test_delete_ignores_folder_delete_when_unable_to_delete_folder(self):
         instance = StaticGenerator()
@@ -184,9 +255,9 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
 
             instance.delete_from_path('some_path')
 
-        rmdir.assert_called_once_with('test_web_root')
+        rmdir.assert_called_once_with('test_web_root/current')
 
-    def test_delete_from_path(self):
+    def test_delete_from_path_deletes_current_file(self):
         instance = StaticGenerator()
         remove = Mock()
         with nested(patch('os.path.exists', Mock(return_value=True)),
@@ -194,11 +265,22 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
 
             instance.delete_from_path('some_path')
 
-        remove.assert_called_once_with('test_web_root/some_path')
+        remove.assert_called_once_with('test_web_root/current/some_path')
+
+    def test_delete_from_path_does_not_delete_stale_file(self):
+        instance = StaticGenerator()
+        remove = Mock()
+        with nested(patch('os.path.exists', Mock(return_value=True)),
+                    patch('os.remove', remove)):
+
+            instance.delete_from_path('some_path')
+
+        self.assertNotIn(call('test_web_root/stale/some_path'),
+                         remove.call_args_list)
 
     def test_publish_loops_through_all_resources(self):
         instance = StaticGenerator('some_path_1', 'some_path_2')
-        rename = Mock()
+        rename = Mock(wraps=os.rename)
         with nested(patch('os.rename', rename),
                     patch.object(instance, 'get_content_from_path',
                                  Mock(return_value='some_content'))):
@@ -206,8 +288,8 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
             instance.publish()
 
         rename.assert_has_calls([
-            call(ANY, 'test_web_root/some_path_1'),
-            call(ANY, 'test_web_root/some_path_2')])
+            call(ANY, 'test_web_root/current/some_path_1'),
+            call(ANY, 'test_web_root/current/some_path_2')])
 
     def test_delete_loops_through_all_resources(self):
         instance = StaticGenerator('some_path', 'some_path_2')
@@ -217,8 +299,8 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
 
             instance.delete()
 
-        remove.assert_has_calls([call('test_web_root/some_path'),
-                                 call('test_web_root/some_path_2')])
+        remove.assert_has_calls([call('test_web_root/current/some_path'),
+                                 call('test_web_root/current/some_path_2')])
 
     def test_can_create_dummy_handler(self):
         handler = staticgenerator.DummyHandler()
