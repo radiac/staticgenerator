@@ -297,6 +297,11 @@ class StaticGenerator(object):
             f, tmpname = tempfile.mkstemp(dir=fresh_directory)
             os.write(f, content)
             os.close(f)
+        except Exception as exc:
+            raise StaticGeneratorException(
+                'Could not write temporary fresh file: {0}. {1}'
+                .format(fresh_filename, exc))
+        try:
             os.chmod(tmpname,
                      stat.S_IREAD |
                      stat.S_IWRITE |
@@ -306,14 +311,15 @@ class StaticGenerator(object):
                      stat.S_IROTH)
             os.rename(tmpname, fresh_filename)
         except Exception as exc:
-            raise StaticGeneratorException(
-                'Could not create fresh file: {0}. {1}'
+            logger.warning(
+                'Could not chmod or rename fresh file: {0}. '
+                'Temporary file probably removed by invalidation. {1}'
                 .format(fresh_filename, exc))
-
-        # The fresh version of the cached file is now on the disk.  Now
-        # create a hard link to it in the stale cache directory.
-        hardlink(fresh_filename, stale_filename,
-                 remove_dst=True, ignore_dst=True)
+        else:
+            # The fresh version of the cached file is now on the disk.  Now
+            # create a hard link to it in the stale cache directory.
+            hardlink(fresh_filename, stale_filename,
+                     remove_dst=True, ignore_dst=True)
 
     def recursive_delete_from_path(self, path):
         filename = self.get_filename_from_path(

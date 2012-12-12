@@ -176,6 +176,24 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
             'test_web_root/fresh/some_path. message',
             str(cm.exception))
 
+    def test_publish_fails_silently_when_unable_to_chmod_temp_file(self):
+        instance = StaticGenerator()
+        with patch('os.chmod') as chmod:
+            chmod.side_effect = ValueError('message')
+
+            instance.publish_from_path('/some_path', content='some_content')
+
+        self.assertFalse(os.path.exists('test_web_root/fresh/some_path'))
+
+    def test_publish_fails_silently_when_unable_to_rename_temp_file(self):
+        instance = StaticGenerator()
+        with patch('os.rename') as rename:
+            rename.side_effect = ValueError('message')
+
+            instance.publish_from_path('/some_path', content='some_content')
+
+        self.assertFalse(os.path.exists('test_web_root/fresh/some_path'))
+
     def test_publish_raises_when_unable_to_hard_link_stale_file(self):
         instance = StaticGenerator()
         with nested(patch('os.link'),
@@ -351,6 +369,7 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
 
             instance.get_content_from_path('/some_path')
 
-        self.assertEqual('The requested page("/some_path") raised an exception.'
-                         ' Static Generation failed. Error: exception',
+        self.assertEqual('The requested page("/some_path") raised an '
+                         'exception. Static Generation failed. '
+                         'Error: exception',
                          str(cm.exception))
