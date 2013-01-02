@@ -1,6 +1,6 @@
 from setuptools import setup
 
-version = '1.4.2.1-g2.0'
+version = '1.4.2.1-g2.1'
 
 setup(name='staticgenerator',
       version=version,

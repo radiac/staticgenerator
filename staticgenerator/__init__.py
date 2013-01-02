@@ -220,9 +220,10 @@ class StaticGenerator(object):
             # content for AJAX requests.
             path += ',ajax'
 
-        filename = os.path.join(self.web_root, path.lstrip('/')).encode('utf-8')
+        filename = (os.path.join(self.web_root, path.lstrip('/'))
+                    .encode('utf-8'))
         if len(filename) > 255:
-            return None, None
+            return None
         return filename
 
     def _get_publish_data(self, path, query_string, is_ajax):
@@ -260,7 +261,8 @@ class StaticGenerator(object):
         """
         fresh_filename, stale_filename = self._get_publish_data(
             path, query_string, is_ajax)
-        self._publish_stale_file(fresh_filename, stale_filename)
+        if fresh_filename:  # too long URLs not cached
+            self._publish_stale_file(fresh_filename, stale_filename)
 
     def publish_from_path(self,
                           path,
