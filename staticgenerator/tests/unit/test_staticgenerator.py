@@ -136,9 +136,8 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
 
             instance.publish_from_path('/some_path', content='some_content')
 
-        self.assertEqual(
-            'Could not create the directory: test_web_root/fresh. message',
-            str(cm.exception))
+        self.assertEqual('Could not create directory', str(cm.exception))
+        self.assertEqual('test_web_root/fresh', cm.exception.directory)
 
     def test_publish_raises_when_unable_to_create_stale_folder(self):
         real_makedirs = os.makedirs
@@ -158,9 +157,8 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
 
             instance.publish_from_path('/some_path', content='some_content')
 
-        self.assertEqual(
-            'Could not create the directory: test_web_root/stale. ',
-            str(cm.exception))
+        self.assertEqual('Could not create directory', str(cm.exception))
+        self.assertEqual('test_web_root/stale', cm.exception.directory)
 
     def test_publish_raises_when_unable_to_create_temp_file(self):
         instance = StaticGenerator()
@@ -171,10 +169,9 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
 
             instance.publish_from_path('/some_path', content='some_content')
 
-        self.assertEqual(
-            'Could not write temporary fresh file: '
-            'test_web_root/fresh/some_path. message',
-            str(cm.exception))
+        self.assertEqual('Could not write temporary fresh file',
+                         str(cm.exception))
+        self.assertEqual('test_web_root/fresh', cm.exception.fresh_directory)
 
     def test_publish_fails_silently_when_unable_to_chmod_temp_file(self):
         instance = StaticGenerator()
@@ -203,10 +200,9 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
 
             instance.publish_from_path('/some_path', content='some_content')
 
-        self.assertEqual(
-            'Could not link test_web_root/fresh/some_path '
-            'to test_web_root/stale/some_path. [Errno 2] message',
-            str(cm.exception))
+        self.assertEqual('Could not link file', str(cm.exception))
+        self.assertEqual('test_web_root/fresh/some_path', cm.exception.src)
+        self.assertEqual('test_web_root/stale/some_path', cm.exception.dst)
 
     def test_publish_from_path_creates_current_file(self):
         instance = StaticGenerator()
@@ -260,9 +256,9 @@ class StaticGeneratorWithWebRootSetting_Tests(TestCase):
 
             instance.delete_from_path('/some_path')
 
-        self.assertEqual(
-            'Could not delete file: test_web_root/fresh/some_path',
-            str(cm.exception))
+        self.assertEqual('Could not delete file', str(cm.exception))
+        self.assertEqual('test_web_root/fresh/some_path',
+                         cm.exception.filename)
 
     def test_delete_ignores_folder_delete_when_unable_to_delete_folder(self):
         instance = StaticGenerator()
