@@ -40,6 +40,9 @@ def create_directory(directory):
         return
     try:
         os.makedirs(directory)
+    except OSError as exc:
+        if exc.errno == 17:  # OSError 17 = 'File exists'
+            return
     except Exception as exc:
         raise StaticGeneratorException('Could not create directory',
                                        directory=directory)
