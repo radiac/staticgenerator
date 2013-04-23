@@ -18,6 +18,7 @@ from django.db.models import Model
 from django.db.models.query import QuerySet
 from django.conf import settings
 from django.test.client import RequestFactory
+from django.utils.http import urlquote
 from handlers import DummyHandler
 
 
@@ -223,7 +224,9 @@ class StaticGenerator(object):
             path = '%sindex.html%%3F' % path
         # will not work on windows... meh
         if query_string:
-            path += query_string
+            # BingBot makes broken queries with non-ASCII query parameters
+            # -> # urlquote
+            path += urlquote(query_string)
         if is_ajax:
             # Append an ',ajax' suffix to the file name for AJAX requests.
             # This makes it possible to cache responses which have different
