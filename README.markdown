@@ -16,7 +16,7 @@ The mrj0 version is itself a fork from the main branch in order to add patches f
 
 Example `settings.py`:
 
-    WEB_ROOT = os.path.join(os.path.dirname(__file__), 'generated')
+    STATIC_GENERATOR_ROOT = os.path.join(os.path.dirname(__file__), 'generated')
     
     STATIC_GENERATOR_ANONYMOUS_ONLY = True
     

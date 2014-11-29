@@ -16,19 +16,16 @@ from django.db.models.base import ModelBase
 from django.db.models.manager import Manager
 from django.db.models import Model
 from django.db.models.query import QuerySet
-from django.conf import settings
+from django.conf import settings as django_settings
 from django.test.client import RequestFactory
 from django.utils.http import urlquote
 from handlers import DummyHandler
 
+from staticgenerator import settings
+from staticgenerator.exceptions import StaticGeneratorException
+
 
 logger = logging.getLogger('staticgenerator')
-
-
-class StaticGeneratorException(Exception):
-    def __init__(self, message, **kwargs):
-        super(StaticGeneratorException, self).__init__(message)
-        self.__dict__.update(kwargs)
 
 
 def create_directory(directory):
@@ -124,12 +121,8 @@ class StaticGenerator(object):
     def __init__(self, *resources):
         self.resources = self.extract_resources(resources)
         self.server_name = self.get_server_name()
-
-        try:
-            self.web_root = getattr(settings, 'WEB_ROOT')
-        except AttributeError:
-            raise StaticGeneratorException('You must specify WEB_ROOT in settings.py')
-
+        self.web_root = settings.ROOT
+        
     def extract_resources(self, resources):
         """Takes a list of resources, and gets paths by type"""
         extracted = []
@@ -167,7 +160,7 @@ class StaticGenerator(object):
         Otherwise, return "localhost".
         '''
         try:
-            return getattr(settings, 'SERVER_NAME')
+            return getattr(django_settings, 'SERVER_NAME')
         except:
             pass
 

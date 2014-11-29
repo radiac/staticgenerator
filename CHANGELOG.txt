@@ -1,3 +1,11 @@
+2014-08-10
+
+    - Moved settings into settings.py
+    
+    - Moved exceptions into exceptions.py
+    
+    - Renamed WEB_ROOT to STATIC_GENERATOR_ROOT, with fallback to WEB_ROOT
+
 2012-12-09, v1.4.1.2-g2.3
 
     - Simplified code by removing uses of dependency injection

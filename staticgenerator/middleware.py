@@ -1,8 +1,8 @@
 import re
-from django.conf import settings
 import logging
-from staticgenerator import StaticGenerator, StaticGeneratorException
 import sys
+
+from staticgenerator import StaticGenerator, StaticGeneratorException, settings
 
 
 logger = logging.getLogger('staticgenerator.middleware')
@@ -20,8 +20,8 @@ class StaticGeneratorMiddleware(object):
         )
         
     """
-    urls = tuple([re.compile(url) for url in settings.STATIC_GENERATOR_URLS])
-    excluded_urls = tuple([re.compile(url) for url in getattr(settings, 'STATIC_GENERATOR_EXCLUDE_URLS', [])])
+    urls = tuple([re.compile(url) for url in settings.URLS])
+    excluded_urls = tuple([re.compile(url) for url in settings.EXCLUDE_URLS])
     gen = StaticGenerator()
 
     def process_request(self, request):
@@ -31,7 +31,7 @@ class StaticGeneratorMiddleware(object):
             logger.debug('StaticGeneratorMiddleware: disabled')
             return None
 
-        if  (getattr(settings, 'STATIC_GENERATOR_ANONYMOUS_ONLY', False)
+        if (settings.ANONYMOUS_ONLY
              and hasattr(request, 'user')
              and not request.user.is_anonymous()):
             logger.debug('StaticGeneratorMiddleware: '

@@ -5,6 +5,7 @@
 #         Instance of <class> has no <member>
 
 from contextlib import nested
+from django.conf import settings
 from django.db.models.query import QuerySet
 from django.test.utils import override_settings
 from django.test import TestCase
@@ -12,9 +13,10 @@ from mock import ANY, call, Mock, patch
 from nose.tools import raises
 import os
 import shutil
-from staticgenerator import (StaticGenerator,
-                             StaticGeneratorException)
 import staticgenerator
+from staticgenerator import StaticGenerator
+from staticgenerator import settings as staticgenerator_settings
+from staticgenerator.exceptions import StaticGeneratorException
 from staticgenerator.tests.models import Model
 
 
@@ -27,17 +29,20 @@ def queryset_mock_factory(*args):
 
 class StaticGeneratorWithoutWebRootSetting_Tests(TestCase):
     @raises(StaticGeneratorException)
+    @override_settings()
     def test_not_having_web_root_raises(self):
+        del settings.STATIC_GENERATOR_ROOT
+        staticgenerator_settings.load_settings()
         StaticGenerator()
 
-    @override_settings(WEB_ROOT='test_web_root_1294128189')
+    @override_settings(STATIC_GENERATOR_ROOT='test_web_root_1294128189')
     def test_staticgenerator_keeps_track_of_web_root(self):
         instance = StaticGenerator()
 
         self.assertEqual('test_web_root_1294128189', instance.web_root)
 
 
-@override_settings(WEB_ROOT='test_web_root')
+@override_settings(STATIC_GENERATOR_ROOT='test_web_root')
 class StaticGeneratorWithoutServerNameSetting_Tests(TestCase):
     def test_get_server_name_gets_name_from_site(self):
         with patch('django.contrib.sites.models'
@@ -54,7 +59,7 @@ class StaticGeneratorWithoutServerNameSetting_Tests(TestCase):
         self.assertEqual('localhost', instance.server_name)
 
 
-@override_settings(WEB_ROOT='test_web_root',
+@override_settings(STATIC_GENERATOR_ROOT='test_web_root',
                    SERVER_NAME='localhost')
 class StaticGeneratorWithWebRootSetting_Tests(TestCase):
     def tearDown(self):
