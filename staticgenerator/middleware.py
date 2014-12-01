@@ -24,10 +24,10 @@ class StaticGeneratorMiddleware(object):
     excluded_urls = tuple([re.compile(url) for url in settings.EXCLUDE_URLS])
     gen = StaticGenerator()
 
-    def process_request(self, request):
+    def process_view(self, request, view_func, view_args, view_kwargs):
         request._static_generator = False
 
-        if getattr(request, 'disable_static_generator', False):
+        if getattr(view_func, 'disable_static_generator', False):
             logger.debug('StaticGeneratorMiddleware: disabled')
             return None
 

@@ -78,9 +78,10 @@ Or download from the [Python Package Index](http://pypi.python.org/pypi/staticge
 
 ## Usage
 
-There are two ways to generate the static files. Both setups first require `WEB_ROOT` to be set in `settings.py`:
+There are two ways to generate the static files. Both setups first require
+`STATIC_GENERATOR_ROOT` to be set in `settings.py`:
 
-    WEB_ROOT = '/var/www/example.com/public/'
+    STATIC_GENERATOR_ROOT = '/var/www/example.com/public/'
 
 ### Method 1 (preferred): Middleware
 
