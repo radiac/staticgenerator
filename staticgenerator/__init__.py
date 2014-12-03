@@ -377,3 +377,13 @@ def quick_delete(*resources):
 
 def recursive_delete(*resources):
     return StaticGenerator(*resources).recursive_delete()
+
+def bypass_request(response, n=1):
+    """
+    Bypass the next n requests (default 1)
+    """
+    response.set_cookie(
+        key=settings.BYPASS_COOKIE, 
+        value=n,
+        max_age=django_settings.SESSION_COOKIE_AGE,
+    )

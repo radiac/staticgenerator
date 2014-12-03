@@ -2,7 +2,9 @@ import re
 import logging
 import sys
 
-from staticgenerator import StaticGenerator, StaticGeneratorException, settings
+from staticgenerator import (
+    StaticGenerator, StaticGeneratorException, settings, bypass_request
+)
 
 
 logger = logging.getLogger('staticgenerator.middleware')
@@ -26,11 +28,15 @@ class StaticGeneratorMiddleware(object):
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         request._static_generator = False
-
+        
         if getattr(view_func, 'disable_static_generator', False):
             logger.debug('StaticGeneratorMiddleware: disabled')
             return None
-
+        
+        if request.COOKIES.has_key(settings.BYPASS_COOKIE):
+            logger.debug('StaticGeneratorMiddleware: disabled by cookie')
+            return None
+        
         if (settings.ANONYMOUS_ONLY
              and hasattr(request, 'user')
              and not request.user.is_anonymous()):
@@ -92,15 +98,25 @@ class StaticGeneratorMiddleware(object):
                     extra={'request': request})
         
         # Set or unset authenticated cookie
-        if settings.AUTHENTICATED_COOKIE is not None:
-            if hasattr(request, 'user') and not request.user.is_anonymous():
-                response.set_cookie(
-                    key=settings.AUTHENTICATED_COOKIE, 
-                    value='1',
-                    expires=request.session.get_expiry_date()
-                )
-                
+        if (settings.BYPASS_AUTHENTICATED and 
+            hasattr(request, 'user')
+            and not request.user.is_anonymous()
+        ):
+            bypass_request(response)
+        else:
+            # Get count and decrement it
+            # Catch all errors, including missing cookie and non-int value
+            try:
+                count = int(response.cookies[settings.BYPASS_COOKIE].value)
+            except:
+                count = 0
+            count -= 1
+            
+            if count < 0:
+                # No more bypasses
+                response.delete_cookie(settings.BYPASS_COOKIE)
             else:
-                response.delete_cookie(settings.AUTHENTICATED_COOKIE)
+                # Bypasses left, update cookie
+                bypass_request(response, count)
         
         return response

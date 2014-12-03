@@ -30,15 +30,24 @@ def load_settings():
     g['ANONYMOUS_ONLY'] = getattr(
         settings, 'STATIC_GENERATOR_ANONYMOUS_ONLY', False
     )
-
+    
+    # STATIC_GENERATOR_BYPASS_COOKIE
+    # Name of bypass cookie
+    # It can be used in conjunction with your web server to force requests
+    # through to Django - just test it exists
+    # Default: "_sgb"
+    g['BYPASS_COOKIE'] = getattr(
+        settings, 'STATIC_GENERATOR_BYPASS_COOKIE', '_sgb'
+    )
+    
     # STATIC_GENERATOR_AUTHENTICATED_COOKIE
     # If set, set a cookie with this name for authenticated users (value "1").
     # Allows the web server to bypass static files and force requests to Django
     # without relying on the sessionid cookie being present or absent.
     # Suggested: "is_auth"
-    # Default: None
-    g['AUTHENTICATED_COOKIE'] = getattr(
-        settings, 'STATIC_GENERATOR_AUTHENTICATED_COOKIE', None
+    # Default: False
+    g['BYPASS_AUTHENTICATED'] = getattr(
+        settings, 'STATIC_GENERATOR_BYPASS_AUTHENTICATED', False
     )
     
     # STATIC_GENERATOR_URLS

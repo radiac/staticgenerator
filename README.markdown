@@ -62,13 +62,51 @@ The middleware now works even if the request object has no `user` attribute. Thi
 
 You can run the `manage.py recursive_delete /` command to invalidate the whole cache.  Use subpaths to only invalidate a part of the cache.
 
+#### Cache bypass cookie
+
+The middleware now supports a bypass cookie. Configure your web server to test
+for a cookie with the name set in `STATIC_GENERATOR_BYPASS_COOKIE`; if it
+exists, force the request through to Django, otherwise check the cache.
+
+When the bypass cookie is set, the middleware will not cache the response. The
+cookie's value is a counter which counts down to 0; when the counter runs out,
+the cookie will be deleted at the end of the request.
+
+The helper function `staticgenerator.bypass_request()` will set the cookie with
+the same age as `SESSION_COOKIE_AGE`. It takes one argument - the number of
+future requests to bypass. By default that is 1, to skip the next request.
+
+The bypass cookie can also be set automatically for authenticated users with
+`STATIC_GENERATOR_BYPASS_AUTHENTICATED`. If they log out, the counter will
+empty automatically and the cookie will be deleted.
+
+Examples of use include:
+* The messages framework
+  * When you set a message, set the cookie with `bypass_request()`
+  * Redirect to a page which would normally be cached
+  * The cookie will cause the webserver to bypass the cache
+  * Message will not be saved by caching middleware, 
+* Authenticated users
+  * Set `STATIC_GENERATOR_BYPASS_AUTHENTICATED` to True
+  * Authenticated users will never see the cache
+  * Overrides `STATIC_GENERATOR_ANONYMOUS_ONLY` - will only cache if the user
+    is anonymous
+
 #### Changes to settings
 
-`WEB_ROOT` is now `STATIC_GENERATOR_ROOT`, to avoid conflicts with other custom settings
+`STATIC_GENERATOR_ROOT`
+* This replaces `WEB_ROOT` to avoid conflicts with existing settings
+* If this is not set, `WEB_ROOT` will be used for backwards compatibility
 
-Added `STATIC_GENERATOR_AUTHENTICATED_COOKIE`
-* If set, a cookie with this name will be set for users who are authenticated
-* This will let you configure your web server to force requests by authenticated users through to Django, bypassing the cache, without relying on the `sessionid` cookie being present or absent.
+`STATIC_GENERATOR_BYPASS_COOKIE`
+* Name of bypass cookie
+* Default: "_sgb"
+
+`STATIC_GENERATOR_BYPASS_AUTHENTICATED`
+* If set, will ensure the bypass cookie is set at the end of each request if
+  users are authenticated, meaning they will never touch the cache.
+* Default: False
+
 
 ## Download
 
