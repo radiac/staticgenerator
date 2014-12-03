@@ -217,15 +217,27 @@ This configuration snippet shows how Nginx can automatically show the index.html
     
         server {
             server_name  example.com;
-            root   /var/www/myproject/generated/fresh;
 
+            # Example root location to serve static resources etc
             location / {
+                root   /var/www/myproject/public;
+                try_files $uri @generated;
+            }
+            
+            # Handle the generated files
+            location @generated {
+                root   /var/www/myproject/generated/fresh;
                 default_type  text/html;
-
+                
+                if ($cookie__sgb != "") {
+                    proxy_pass http://django;
+                    break;
+                }
+                
                 if ($http_x_requested_with = XMLHttpRequest) {
                     set $is_ajax ",ajax";
                 }
-
+                
                 if (-f $request_filename/index.html%3F$args$is_ajax) {
                     rewrite (.*)/ $1/index.html%3F$args$is_ajax;
                     break;
