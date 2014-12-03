@@ -62,6 +62,14 @@ The middleware now works even if the request object has no `user` attribute. Thi
 
 You can run the `manage.py recursive_delete /` command to invalidate the whole cache.  Use subpaths to only invalidate a part of the cache.
 
+#### Changes to settings
+
+`WEB_ROOT` is now `STATIC_GENERATOR_ROOT`, to avoid conflicts with other custom settings
+
+Added `STATIC_GENERATOR_AUTHENTICATED_COOKIE`
+* If set, a cookie with this name will be set for users who are authenticated
+* This will let you configure your web server to force requests by authenticated users through to Django, bypassing the cache, without relying on the `sessionid` cookie being present or absent.
+
 ## Download
 
 You can get 2General's fork of StaticGenerator by cloning with Git or using `pip`:

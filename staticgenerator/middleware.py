@@ -90,5 +90,17 @@ class StaticGeneratorMiddleware(object):
                     'failed to publish fresh content',
                     exc_info=sys.exc_info(),
                     extra={'request': request})
-
+        
+        # Set or unset authenticated cookie
+        if settings.AUTHENTICATED_COOKIE is not None:
+            if hasattr(request, 'user') and not request.user.is_anonymous():
+                response.set_cookie(
+                    key=settings.AUTHENTICATED_COOKIE, 
+                    value='1',
+                    expires=request.session.get_expiry_date()
+                )
+                
+            else:
+                response.delete_cookie(settings.AUTHENTICATED_COOKIE)
+        
         return response
