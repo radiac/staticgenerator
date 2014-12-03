@@ -176,15 +176,17 @@ class StaticGenerator(object):
         Imitates a basic http request using DummyHandler to retrieve
         resulting output (HTML, XML, whatever)
         """
-
-        request = RequestFactory().get(path)
+        # Create the request
+        request = RequestFactory(
+            SERVER_PORT=80,
+            SERVER_NAME=self.server_name,
+            REMOTE_ADDR='127.0.0.1',
+        ).get(path)
+        
         # We must parse the path to grab query string
         parsed = urlparse.urlparse(path)
         request.path_info = parsed.path
         request.GET = QueryDict(parsed.query)
-        request.META.setdefault('SERVER_PORT', 80)
-        request.META.setdefault('SERVER_NAME', self.server_name)
-        request.META.setdefault('REMOTE_ADDR', '127.0.0.1')
 
         handler = DummyHandler()
         try:
